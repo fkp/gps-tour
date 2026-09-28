@@ -23,21 +23,21 @@ body.open .locate{bottom:calc(var(--sheet-h,300px) + 12px)}
 .pin{width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;border:3px solid #fff;display:grid;place-items:center;font-weight:800;font-size:1.05rem;box-shadow:0 2px 6px rgba(0,0,0,.4)}
 .pin.active{background:var(--hi);color:var(--ink);transform:scale(1.2)}
 .you{width:18px;height:18px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 2px rgba(26,115,232,.4)}
-.sheet{position:fixed;left:0;right:0;bottom:0;z-index:1100;max-height:72dvh;overflow:auto;background:var(--paper);border-radius:18px 18px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.3);padding:14px 16px calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateY(105%);transition:transform .25s}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:1100;max-height:50dvh;overflow:auto;background:var(--paper);border-radius:18px 18px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.3);padding:14px 16px calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateY(105%);transition:transform .25s}
 body.open .sheet{transform:none}
-.sheet .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.sheet .top{display:flex;align-items:center;gap:8px}
+.sheet .ttl{flex:1;min-width:0}
 .sheet h2{margin:0;font-size:1.25rem}
 .dist{color:var(--muted);font-size:.9rem;margin:2px 0 0}
-.close{min-width:44px;min-height:44px;border:0;background:#eef2f3;border-radius:50%;font-size:1.3rem}
-.sheet img{display:block;width:100%;max-height:30dvh;object-fit:cover;border-radius:10px;margin:10px 0}
+.close,.arrow{flex:none;min-width:44px;min-height:44px;border:0;background:#eef2f3;color:var(--ink);border-radius:50%;font-size:1.3rem}
+.arrow{font-size:2rem;line-height:1;padding:0 0 4px;background:var(--ink);color:#fff}
+.arrow:disabled{opacity:.25}
+.sheet img{display:block;width:100%;max-height:20dvh;object-fit:cover;border-radius:10px;margin:10px 0}
 .sheet p{margin:8px 0}
 audio{width:100%;margin:6px 0;height:48px}
 .err{color:#a11;font-size:.9rem}
 details{margin:8px 0;border-top:1px solid var(--line);padding-top:8px}
 summary{cursor:pointer;font-weight:600;min-height:32px}
-.nav{display:flex;gap:10px;margin-top:10px}
-.nav button{flex:1;min-height:48px;border-radius:10px;border:2px solid var(--ink);background:#fff;font-weight:700}
-.nav button:disabled{opacity:.35}
 .toast{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 64px);z-index:1200;background:#fff;border:2px solid var(--ink);border-radius:10px;padding:10px 12px;display:none}
 .toast.show{display:block}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -51,18 +51,16 @@ summary{cursor:pointer;font-weight:600;min-height:32px}
 
 <section id="sheet" class="sheet" aria-live="polite">
   <div class="top">
-    <div><h2 id="poiTitle"></h2><p id="poiDist" class="dist"></p></div>
+    <button id="prev" class="arrow" type="button" aria-label="Previous stop">‹</button>
+    <div class="ttl"><h2 id="poiTitle"></h2><p id="poiDist" class="dist"></p></div>
+    <button id="next" class="arrow" type="button" aria-label="Next stop">›</button>
     <button id="close" class="close" type="button" aria-label="Close">✕</button>
   </div>
-  <img id="poiImg" alt="">
-  <p id="poiSummary"></p>
   <audio id="audio" controls preload="none"></audio>
   <p id="audioErr" class="err" hidden>Audio for this stop couldn't be loaded.</p>
+  <img id="poiImg" alt="">
+  <p id="poiSummary"></p>
   <details id="tx"><summary>Read the transcript</summary><p id="poiTx"></p></details>
-  <div class="nav">
-    <button id="prev" type="button">Previous stop</button>
-    <button id="next" type="button">Next stop</button>
-  </div>
 </section>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -112,9 +110,20 @@ function openPoi(i){
   $('prev').disabled = i === 0; $('next').disabled = i === pois.length - 1;
   updateDist();
   document.body.classList.add('open');
-  requestAnimationFrame(() => document.body.style.setProperty('--sheet-h', $('sheet').offsetHeight + 'px'));
-  map.panTo([p.lat, p.lng], {animate:true});
+  requestAnimationFrame(() => centerOnPoi(true));
 }
+
+// Centre the stop in the part of the map not covered by the top bar and the card.
+function centerOnPoi(animate){
+  if(current < 0) return;
+  const sheetH = $('sheet').offsetHeight, barH = document.querySelector('.bar').offsetHeight;
+  document.body.style.setProperty('--sheet-h', sheetH + 'px');
+  const p = pois[current], z = map.getZoom();
+  const target = map.project([p.lat, p.lng], z).add([0, (sheetH - barH) / 2]);
+  map.setView(map.unproject(target, z), z, {animate});
+}
+// Keep the stop visible when the card changes size (image loads, transcript opens, rotation).
+new ResizeObserver(() => centerOnPoi(false)).observe($('sheet'));
 $('audio').addEventListener('error', () => $('audioErr').hidden = false);
 $('close').onclick = () => { $('audio').pause(); document.body.classList.remove('open'); markers.forEach(m => m.getElement().firstChild.classList.remove('active')); current = -1; };
 $('prev').onclick = () => current > 0 && openPoi(current - 1);
