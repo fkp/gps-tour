@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10222b">
+<title>Walking Audio Tour</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--ink:#10222b;--accent:#0a7c86;--hi:#ffb300;--paper:#fff;--muted:#4b5d66;--line:#d5dde0}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);overflow:hidden}
+#map{position:fixed;inset:0}
+.bar{position:fixed;top:0;left:0;right:0;z-index:1000;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bar h1{font-size:1.05rem;margin:0;font-weight:700}
+.bar small{opacity:.8}
+button{font:inherit;cursor:pointer}
+button:focus-visible,summary:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+.locate{position:fixed;right:12px;z-index:1000;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);min-height:48px;padding:0 18px;border-radius:24px;border:2px solid var(--ink);background:#fff;color:var(--ink);font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.25);transition:bottom .25s}
+.locate.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+body.open .locate{bottom:calc(var(--sheet-h,300px) + 12px)}
+.pin{width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;border:3px solid #fff;display:grid;place-items:center;font-weight:800;font-size:1.05rem;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.pin.active{background:var(--hi);color:var(--ink);transform:scale(1.2)}
+.you{width:18px;height:18px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 2px rgba(26,115,232,.4)}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:1100;max-height:72dvh;overflow:auto;background:var(--paper);border-radius:18px 18px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.3);padding:14px 16px calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateY(105%);transition:transform .25s}
+body.open .sheet{transform:none}
+.sheet .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.sheet h2{margin:0;font-size:1.25rem}
+.dist{color:var(--muted);font-size:.9rem;margin:2px 0 0}
+.close{min-width:44px;min-height:44px;border:0;background:#eef2f3;border-radius:50%;font-size:1.3rem}
+.sheet img{display:block;width:100%;max-height:30dvh;object-fit:cover;border-radius:10px;margin:10px 0}
+.sheet p{margin:8px 0}
+audio{width:100%;margin:6px 0;height:48px}
+.err{color:#a11;font-size:.9rem}
+details{margin:8px 0;border-top:1px solid var(--line);padding-top:8px}
+summary{cursor:pointer;font-weight:600;min-height:32px}
+.nav{display:flex;gap:10px;margin-top:10px}
+.nav button{flex:1;min-height:48px;border-radius:10px;border:2px solid var(--ink);background:#fff;font-weight:700}
+.nav button:disabled{opacity:.35}
+.toast{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 64px);z-index:1200;background:#fff;border:2px solid var(--ink);border-radius:10px;padding:10px 12px;display:none}
+.toast.show{display:block}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="bar"><h1 id="title">Loading tour…</h1><small id="count"></small></div>
+<div id="map" aria-label="Tour map"></div>
+<div id="toast" class="toast" role="status"></div>
+<button id="locate" class="locate" type="button">Find me</button>
+
+<section id="sheet" class="sheet" aria-live="polite">
+  <div class="top">
+    <div><h2 id="poiTitle"></h2><p id="poiDist" class="dist"></p></div>
+    <button id="close" class="close" type="button" aria-label="Close">✕</button>
+  </div>
+  <img id="poiImg" alt="">
+  <p id="poiSummary"></p>
+  <audio id="audio" controls preload="none"></audio>
+  <p id="audioErr" class="err" hidden>Audio for this stop couldn't be loaded.</p>
+  <details id="tx"><summary>Read the transcript</summary><p id="poiTx"></p></details>
+  <div class="nav">
+    <button id="prev" type="button">Previous stop</button>
+    <button id="next" type="button">Next stop</button>
+  </div>
+</section>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const map = L.map('map', {zoomControl:false});
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+
+let pois = [], markers = [], current = -1, here = null, youDot = null, youAcc = null, watchId = null, followed = false;
+
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(()=>t.classList.remove('show'), 5000); }
+
+fetch('tours.json').then(r => { if(!r.ok) throw new Error(r.status); return r.json(); }).then(data => {
+  const tour = data.tours[0];
+  document.title = tour.title;
+  $('title').textContent = tour.title;
+  $('count').textContent = tour.pois.length + ' stops';
+  pois = tour.pois;
+  const line = L.polyline(tour.route, {color:'#0a7c86', weight:5, opacity:.85}).addTo(map);
+  pois.forEach((p, i) => {
+    const icon = L.divIcon({className:'', html:'<div class="pin">'+(i+1)+'</div>', iconSize:[40,40], iconAnchor:[20,20]});
+    const m = L.marker([p.lat, p.lng], {icon, title:p.title, keyboard:true}).addTo(map);
+    m.on('click', () => openPoi(i));
+    markers.push(m);
+  });
+  map.fitBounds(line.getBounds().extend(pois.map(p => [p.lat, p.lng])), {paddingTopLeft:[20,70], paddingBottomRight:[20,20]});
+}).catch(() => {
+  $('title').textContent = 'Tour failed to load';
+  toast("Couldn't load tours.json. If you opened index.html as a file, run a local web server instead (see README).");
+});
+
+function openPoi(i){
+  current = i;
+  const p = pois[i], a = $('audio');
+  markers.forEach((m, j) => m.getElement().firstChild.classList.toggle('active', j === i));
+  $('poiTitle').textContent = p.title;
+  $('poiSummary').textContent = p.summary || '';
+  const img = $('poiImg'); img.hidden = !p.image; img.onerror = () => img.hidden = true;
+  if(p.image){ img.src = p.image; img.alt = p.title; }
+  $('tx').hidden = !p.transcript; $('tx').open = false; $('poiTx').textContent = p.transcript || '';
+  $('audioErr').hidden = true;
+  a.pause(); a.src = p.audio; a.load();
+  a.play().catch(() => {}); // runs inside the tap, so phones allow it
+  $('prev').disabled = i === 0; $('next').disabled = i === pois.length - 1;
+  updateDist();
+  document.body.classList.add('open');
+  requestAnimationFrame(() => document.body.style.setProperty('--sheet-h', $('sheet').offsetHeight + 'px'));
+  map.panTo([p.lat, p.lng], {animate:true});
+}
+$('audio').addEventListener('error', () => $('audioErr').hidden = false);
+$('close').onclick = () => { $('audio').pause(); document.body.classList.remove('open'); markers.forEach(m => m.getElement().firstChild.classList.remove('active')); current = -1; };
+$('prev').onclick = () => current > 0 && openPoi(current - 1);
+$('next').onclick = () => current < pois.length - 1 && openPoi(current + 1);
+
+function updateDist(){
+  const el = $('poiDist');
+  if(!here || current < 0){ el.textContent = ''; return; }
+  const d = Math.round(map.distance(here, [pois[current].lat, pois[current].lng]));
+  el.textContent = d >= 1000 ? (d/1000).toFixed(1) + ' km away' : d + ' m away';
+}
+
+$('locate').onclick = () => {
+  if(!('geolocation' in navigator)) return toast("Your browser doesn't support location.");
+  if(watchId !== null){ // second tap: recentre
+    if(here) map.setView(here, Math.max(map.getZoom(), 17));
+    return;
+  }
+  $('locate').textContent = 'Locating…';
+  watchId = navigator.geolocation.watchPosition(pos => {
+    here = [pos.coords.latitude, pos.coords.longitude];
+    if(!youDot){
+      youDot = L.marker(here, {icon:L.divIcon({className:'', html:'<div class="you"></div>', iconSize:[18,18], iconAnchor:[9,9]}), interactive:false, zIndexOffset:-100}).addTo(map);
+      youAcc = L.circle(here, {radius:pos.coords.accuracy, color:'#1a73e8', weight:1, fillOpacity:.1, interactive:false}).addTo(map);
+    } else { youDot.setLatLng(here); youAcc.setLatLng(here).setRadius(pos.coords.accuracy); }
+    if(!followed){ followed = true; map.setView(here, 17); }
+    $('locate').textContent = 'Centre on me'; $('locate').classList.add('on');
+    updateDist();
+  }, err => {
+    navigator.geolocation.clearWatch(watchId); watchId = null; followed = false;
+    $('locate').textContent = 'Find me'; $('locate').classList.remove('on');
+    toast(err.code === 1 ? 'Location is blocked. Allow location for this site in your browser settings, then tap Find me.' : "Couldn't get your location. Check your signal and try again.");
+  }, {enableHighAccuracy:true, maximumAge:5000, timeout:20000});
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+{
+  "tours": [
+    {
+      "id": "dmains-history-loop",
+      "title": "Davidsons Mains Historical Tour",
+      "description": "A short loop around local historical landmarks around Davidsons Mains.",
+      "route": [
+        [55.9634, -3.2733],
+        [55.9628, -3.2728],
+        [55.9629, -3.2720],
+        [55.9637, -3.2727],
+        [55.9642, -3.2719],
+        [55.9644, -3.2690],
+        [55.9647, -3.2685],
+        [55.9655, -3.2700],
+        [55.9654, -3.2740],
+        [55.9654, -3.2743],
+        [55.9654, -3.2745],
+        [55.9655, -3.2745],
+        [55.9663, -3.2756]
+      ],
+      "pois": [
+        {
+          "id": "stop-1",
+          "title": "Stop 1: Gun Ports",
+          "lat": 55.9634,
+          "lng": -3.2733,
+          "audio": "audio/stop-1.mp3",
+          "image": "img/stop-1.jpg",
+          "summary": "Gun ports in wall",
+          "transcript": "Gun ports installed in the walls as part of the war effort."
+        },
+        {
+          "id": "stop-2",
+          "title": "Stop 2: The Corbie",
+          "lat": 55.9655,
+          "lng": -3.2700,
+          "audio": "audio/stop-2.mp3",
+          "image": "img/stop-2.jpg",
+          "summary": "Corbie fish and chip shop",
+          "transcript": "Corbie is an old scots word for Crow. The building was originally the police station for Davidsons Mains and turned into a fish and chip shop in 1960. The old cells are believed to be used to store potatoes"
+        },
+        {
+          "id": "stop-3",
+          "title": "Stop 3: Black and Lizards",
+          "lat": 55.9654,
+          "lng": -3.2740,
+          "audio": "audio/stop-3.mp3",
+          "image": "img/stop-3.jpg",
+          "summary": "Black and Lizards",
+          "transcript": "This shop used to be the village smiddy. You can see the iron hinges from the original door still on the opticians as it is today."
+        },
+        {
+          "id": "stop-4",
+          "title": "Stop 4: Sycamore Tree",
+          "lat": 55.9654,
+          "lng": -3.2743,
+          "audio": "audio/stop-4.mp3",
+          "image": "img/stop-4.jpg",
+          "summary": "Sycamore Tree",
+          "transcript": "Sycamore is a type of maple tree, you can see the leaves resemble the maple on a canadian flag. A sycamore can grow from 2.5 feet to 6 feet in one year. This tree has been on this location for a long time and is clearly seen as a mature tree in photos from the early 1900s."
+        },
+        {
+          "id": "stop-5",
+          "title": "Stop 5: Old Well",
+          "lat": 55.9654,
+          "lng": -3.2745,
+          "audio": "audio/stop-5.mp3",
+          "image": "img/stop-5.jpg",
+          "summary": "Old village well",
+          "transcript": "Before there was a water supply to the village, people would use a spring at the bottom of Davidsons Mains park. The Ramsay family who owned the Barnton estate did not want people coming into their estate so build a culvert from the bottom of what is now the park out to this well, which was a source of water for the village."
+        },
+        {
+          "id": "stop-6",
+          "title": "Stop 6: Costa",
+          "lat": 55.9655,
+          "lng": -3.2745,
+          "audio": "audio/stop-6.mp3",
+          "image": "img/stop-6.jpg",
+          "summary": "Costa Coffee",
+          "transcript": "This location was originally Lauriston School for Girls, which was closed in 1867 and demolished in 1962. It then became a Royal Bank of Scotland branch and lastly a Costa Coffee in 2019."
+        },
+        {
+          "id": "stop-7",
+          "title": "Stop 7: Old Train line",
+          "lat": 55.9663,
+          "lng": -3.2756,
+          "audio": "audio/stop-7.mp3",
+          "image": "img/stop-7.jpg",
+          "summary": "Old Train line",
+          "transcript": "Davidsons Mains had a railway station, opened 1894 as Barnton Gate, then renamed to Davidsons Mains in 1903, closing in 1951. The railway embankment next to Tesco was where the railway ran over the road, travelling west over what is now houses, the Royal High School driveway to Barnton station. The bridge was low and prevented tall buses from travelling along Cramond Road South so removed when the railway closed. The Tesco supermarket was a goods yard off the side of the main track to Craigleith and had a coal merchant next to it."
+        }
+      ]
+    }
+  ]
+}
